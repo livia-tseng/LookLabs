@@ -6,3 +6,6 @@ python-multipart
 pillow
 python-dotenv
 openai
+python-jose[cryptography]
+passlib[bcrypt]
+httpx

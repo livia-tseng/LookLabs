@@ -1,0 +1,10 @@
+backend/
+  app.py
+  db.py
+  models.py
+  vision.py
+  rules.py
+storage/        # image files (we’ll .gitignore it)
+.env.example
+requirements.txt
+.gitignore
