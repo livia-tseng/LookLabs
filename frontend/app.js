@@ -14,17 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
         currentToken = token;
         currentUser = JSON.parse(user);
         showApp();
-        loadWeather();
-        loadSeasonColors();
     } else {
         showAuth();
     }
     
     // Setup file input handlers
     setupFileHandlers();
-    
-    // Setup navbar
-    setupNavbar();
 });
 
 // ==================== AUTHENTICATION ====================
@@ -37,7 +32,17 @@ function showAuth() {
 function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
+    
+    // Setup navbar when app is shown (after DOM is ready)
+    setTimeout(() => {
+        setupNavbar();
+    }, 50);
+    
+    // Load initial data
     loadCloset();
+    loadWeather();
+    loadSeasonColors();
+    loadUserProfileInCloset();
     loadProfile();
 }
 
@@ -110,6 +115,7 @@ async function handleSignup(event) {
         showApp();
         loadWeather();
         loadSeasonColors();
+        loadUserProfileInCloset();
     } catch (error) {
         alert(`Signup failed: ${error.message}`);
     }
@@ -158,6 +164,7 @@ async function handleLogin(event) {
         showApp();
         loadWeather();
         loadSeasonColors();
+        loadUserProfileInCloset();
     } catch (error) {
         alert(`Login failed: ${error.message}`);
     }
@@ -209,12 +216,46 @@ async function loadWeather() {
         const response = await apiCall('/weather');
         const weather = await response.json();
         
-        document.getElementById('weather-icon').textContent = weather.icon || '☀️';
-        document.getElementById('weather-temp').textContent = `${weather.temperature}°F`;
-        document.getElementById('weather-location').textContent = weather.location || 'Los Angeles';
+        // Update weather widget
+        const locationText = document.getElementById('weather-location-text');
+        const dateText = document.getElementById('weather-date-text');
+        const tempText = document.getElementById('weather-temp-text');
+        const iconDisplay = document.getElementById('weather-icon-display');
+        
+        if (locationText) {
+            locationText.textContent = weather.location || 'Los Angeles';
+        }
+        
+        if (dateText) {
+            const now = new Date();
+            const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const dayName = days[now.getDay()];
+            const monthName = months[now.getMonth()];
+            const day = now.getDate();
+            dateText.textContent = `${dayName} ${monthName} ${day}`;
+        }
+        
+        if (tempText) {
+            tempText.textContent = `${weather.temperature}°F`;
+        }
+        
+        if (iconDisplay) {
+            iconDisplay.textContent = weather.icon || '☀️';
+        }
     } catch (error) {
         console.error('Error loading weather:', error);
     }
+}
+
+function showSeasonColorsModal() {
+    // Create a simple modal to show season colors
+    const colors = getSeasonColors();
+    const colorsHtml = colors.map(color => 
+        `<div style="width: 50px; height: 50px; border-radius: 50%; background: ${color}; border: 2px solid #D0D0D0; display: inline-block; margin: 5px;"></div>`
+    ).join('');
+    
+    alert(`Current Season Colors:\n${colors.map(c => c).join(', ')}`);
 }
 
 async function loadSeasonColors() {
@@ -222,24 +263,38 @@ async function loadSeasonColors() {
         const response = await apiCall('/season-colors');
         const data = await response.json();
         
-        const container = document.getElementById('season-colors');
-        container.innerHTML = '';
+        // Store colors for later use
+        window.seasonColors = data.colors;
         
-        data.colors.forEach(color => {
-            const circle = document.createElement('div');
-            circle.className = 'season-color-circle';
-            circle.style.backgroundColor = color;
-            container.appendChild(circle);
-        });
+        // Display season colors
+        const container = document.getElementById('season-colors');
+        if (container) {
+            container.innerHTML = '';
+            data.colors.forEach(color => {
+                const circle = document.createElement('div');
+                circle.className = 'season-color-circle';
+                circle.style.backgroundColor = color;
+                container.appendChild(circle);
+            });
+        }
     } catch (error) {
         console.error('Error loading season colors:', error);
+    }
+}
+
+function showSeasonColors() {
+    // Scroll to season colors section
+    const section = document.getElementById('season-colors-display');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 }
 
 // ==================== CLOSET ====================
 
 async function loadCloset() {
-    const filter = document.getElementById('closet-filter')?.value || '';
+    const filterSelect = document.getElementById('closet-filter');
+    const filter = filterSelect?.value || '';
     const endpoint = filter ? `/items?slot=${filter}` : '/items';
     
     try {
@@ -258,8 +313,8 @@ async function loadCloset() {
                 <div class="closet-item-card">
                     <img src="${API_BASE}${item.image_url}" alt="${item.type}">
                     <div class="closet-item-info">
-                        <h4>${item.type}</h4>
-                        <p>${item.slot} • ${item.color_primary}</p>
+                        <div class="closet-item-type">${item.type}</div>
+                        <div class="closet-item-details">${item.slot} • ${item.color_primary}</div>
                     </div>
                 </div>
             `).join('');
@@ -341,30 +396,95 @@ async function handleFileUpload(event, type) {
 // ==================== NAVBAR ====================
 
 function setupNavbar() {
-    document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tab = btn.dataset.tab;
-            
-            // Update navbar
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            
-            // Update content
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            document.getElementById(`${tab}-tab`).classList.add('active');
-            
-            // Load data for specific tabs
-            if (tab === 'closet') {
-                loadCloset();
-            } else if (tab === 'outfits') {
-                loadOutfits();
-            } else if (tab === 'profile') {
-                loadProfile();
-            }
+    const navbar = document.querySelector('.navbar');
+    if (!navbar) {
+        console.warn('Navbar not found, retrying...');
+        setTimeout(setupNavbar, 100);
+        return;
+    }
+    
+    // Use event delegation on the navbar itself
+    navbar.addEventListener('click', (e) => {
+        const btn = e.target.closest('.nav-item');
+        if (!btn) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const tab = btn.dataset.tab;
+        if (!tab) {
+            console.warn('No data-tab attribute on button');
+            return;
+        }
+        
+        console.log('Navbar clicked:', tab);
+        
+        // Update navbar
+        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        
+        // Update content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.remove('active');
         });
+        const tabElement = document.getElementById(`${tab}-tab`);
+        if (tabElement) {
+            tabElement.classList.add('active');
+            console.log('Switched to tab:', tab);
+        } else {
+            console.error('Tab element not found:', `${tab}-tab`);
+        }
+        
+        // Load data for specific tabs
+        if (tab === 'closet') {
+            loadCloset();
+            loadUserProfileInCloset();
+        } else if (tab === 'outfits') {
+            loadOutfits();
+        } else if (tab === 'profile') {
+            loadProfile();
+        }
     });
+    
+    console.log('Navbar setup complete with', document.querySelectorAll('.nav-item').length, 'items');
+}
+
+function loadUserProfileInCloset() {
+    if (!currentUser) return;
+    
+    document.getElementById('user-name-display').textContent = currentUser.name;
+    document.getElementById('user-username-display').textContent = `@${currentUser.username}`;
+    
+    if (currentUser.profile_photo_url) {
+        document.getElementById('user-profile-photo').src = `${API_BASE}${currentUser.profile_photo_url}`;
+    }
+}
+
+function setCategoryFilter(filter) {
+    // Update active category button
+    document.querySelectorAll('.category-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === filter) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Update hidden filter select and reload
+    const filterSelect = document.getElementById('closet-filter');
+    if (filterSelect) {
+        filterSelect.value = filter;
+    }
+    loadCloset();
+}
+
+function showSeasonColors() {
+    // Show season colors in a modal or expand the section
+    alert('Season colors are displayed below. Scroll down to see them!');
+}
+
+function toggleRandomFilter() {
+    // Toggle between Random and other options
+    // For now, just keep it as Random
 }
 
 // ==================== DISCOVER PAGE ====================
@@ -416,30 +536,21 @@ function closeOutfitView() {
 }
 
 function displayOutfit(outfit) {
-    // Clear previous outfit
-    document.querySelectorAll('.outfit-item').forEach(item => {
-        item.innerHTML = '';
-    });
-    
-    const itemsList = document.getElementById('outfit-items-list');
+    const displayContainer = document.getElementById('outfit-items-display');
     const itemsHtml = [];
     
-    const slotOrder = ['accessory', 'outerwear', 'top', 'bottom', 'shoes'];
+    const slotOrder = ['outerwear', 'top', 'bottom', 'shoes', 'accessory'];
     
     slotOrder.forEach(slot => {
         if (outfit[slot]) {
             const item = outfit[slot];
-            const itemElement = document.querySelector(`.outfit-item[data-slot="${slot}"]`);
-            
-            if (itemElement) {
-                itemElement.innerHTML = `<img src="${API_BASE}${item.image_url}" alt="${item.type}">`;
-            }
-            
             itemsHtml.push(`
-                <div class="outfit-item-card">
+                <div class="outfit-item-display">
                     <img src="${API_BASE}${item.image_url}" alt="${item.type}">
-                    <h4>${item.type}</h4>
-                    <p>${item.slot} • ${item.color_primary}</p>
+                    <div class="outfit-item-info">
+                        <h4>${item.type}</h4>
+                        <p>${item.slot} • ${item.color_primary}</p>
+                    </div>
                 </div>
             `);
         }
@@ -448,24 +559,18 @@ function displayOutfit(outfit) {
     // Handle dress
     if (outfit.dress) {
         const item = outfit.dress;
-        const topElement = document.querySelector('.outfit-item[data-slot="top"]');
-        const bottomElement = document.querySelector('.outfit-item[data-slot="bottom"]');
-        
-        if (topElement && bottomElement) {
-            topElement.innerHTML = `<img src="${API_BASE}${item.image_url}" alt="${item.type}">`;
-            bottomElement.innerHTML = `<img src="${API_BASE}${item.image_url}" alt="${item.type}">`;
-        }
-        
         itemsHtml.push(`
-            <div class="outfit-item-card">
+            <div class="outfit-item-display">
                 <img src="${API_BASE}${item.image_url}" alt="${item.type}">
-                <h4>${item.type}</h4>
-                <p>${item.slot} • ${item.color_primary}</p>
+                <div class="outfit-item-info">
+                    <h4>${item.type}</h4>
+                    <p>${item.slot} • ${item.color_primary}</p>
+                </div>
             </div>
         `);
     }
     
-    itemsList.innerHTML = itemsHtml.join('');
+    displayContainer.innerHTML = itemsHtml.join('');
 }
 
 async function regenerateOutfit() {
