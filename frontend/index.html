@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LookLabs</title>
-    <link rel="stylesheet" href="/static/styles.css?v=3">
+    <link rel="stylesheet" href="/static/styles.css?v=5">
 </head>
 <body>
     <!-- Login/Signup Screen -->
@@ -110,14 +110,17 @@
                         <h2 id="user-name-display">User</h2>
                         <div class="username" id="user-username-display">@username</div>
                     </div>
+                    
                     <button class="camera-icon-btn" onclick="openCameraModal()" title="Upload new photos">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
                             <circle cx="12" cy="13" r="4"></circle>
                         </svg>
                     </button>
+                   
                 </div>
-                
+                <p style="text-align: right; margin-top: -30px; font-size: 0.8rem; color: var(--text-secondary);">Upload new clothes!</p>
+                <br>
                 <div class="weather-widget" id="weather-widget">
                     <div class="weather-location">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="location-icon">
@@ -161,7 +164,8 @@
                 <button class="category-btn" data-filter="top" onclick="setCategoryFilter('top')">Tops</button>
                 <button class="category-btn" data-filter="bottom" onclick="setCategoryFilter('bottom')">Bottoms</button>
                 <button class="category-btn" data-filter="outerwear" onclick="setCategoryFilter('outerwear')">Outerwear</button>
-                <button class="category-btn" data-filter="accessory" onclick="setCategoryFilter('accessory')">Access</button>
+                <button class="category-btn" data-filter="shoes" onclick="setCategoryFilter('shoes')">Shoes</button>
+                <button class="category-btn" data-filter="accessory" onclick="setCategoryFilter('accessory')">Accessories</button>
             </div>
             
             <select id="closet-filter" onchange="loadCloset()" style="display: none;">
@@ -268,14 +272,18 @@
 
     <!-- Outfit View Page -->
     <div id="outfit-view-page" class="outfit-view-page" style="display: none;">
-        <div class="outfit-view-header">
-            <h2>View Your New Outfit!</h2>
-        </div>
-        <div class="outfit-view-content">
-            <div class="outfit-display" id="outfit-items-display"></div>
-            <div class="outfit-actions">
-                <button class="btn-primary" onclick="saveOutfit()">Save Outfit</button>
-                <button class="btn-secondary" onclick="regenerateOutfit()">Generate Again</button>
+        <div class="outfit-view-container">
+            <div class="outfit-view-header">
+                <h2>View Your New Outfit!</h2>
+                <button class="close-btn" onclick="closeOutfitView()" title="Close">×</button>
+            </div>
+            <div class="outfit-view-content">
+                <div class="outfit-display" id="outfit-items-display"></div>
+                <div class="outfit-actions">
+                    <button class="btn-primary" onclick="saveOutfit()">Save Outfit</button>
+                    <button class="btn-secondary" onclick="regenerateOutfit()">Generate Again</button>
+                    <button class="btn-secondary" onclick="closeOutfitView()">Cancel</button>
+                </div>
             </div>
         </div>
     </div>
@@ -306,6 +314,6 @@
         </div>
     </div>
 
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=5"></script>
 </body>
 </html>

@@ -533,11 +533,53 @@ body {
     transition: transform 0.2s;
     display: flex;
     flex-direction: column;
+    position: relative;
 }
 
 .closet-item-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
+}
+
+.closet-item-card:hover .closet-item-hover-details {
+    max-height: 50px;
+    opacity: 1;
+}
+
+.delete-item-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0;
+    transition: all 0.2s;
+    padding: 0;
+    color: var(--charcoal);
+}
+
+.closet-item-card:hover .delete-item-btn {
+    opacity: 1;
+}
+
+.delete-item-btn:hover {
+    background: #ff4444;
+    border-color: #ff4444;
+    color: white;
+    transform: scale(1.1);
+}
+
+.delete-item-btn svg {
+    width: 16px;
+    height: 16px;
 }
 
 .closet-item-card img {
@@ -562,6 +604,17 @@ body {
 .closet-item-details {
     font-size: 0.75rem;
     color: var(--text-secondary);
+}
+
+.closet-item-hover-details {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    line-height: 1.4;
 }
 
 /* ==================== OUTFITS TAB ==================== */
@@ -595,10 +648,53 @@ body {
     margin-bottom: 15px;
 }
 
+.outfit-name-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
 .outfit-card-name {
     font-weight: 600;
     font-size: 1.1rem;
     color: var(--charcoal);
+}
+
+.rename-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s;
+    opacity: 0.6;
+}
+
+.rename-btn:hover {
+    background: var(--beige);
+    color: var(--olive-green);
+    opacity: 1;
+}
+
+.rename-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.outfit-name-input {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--charcoal);
+    background: white;
+    border: 2px solid var(--olive-green);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-family: inherit;
 }
 
 .outfit-items-preview {
@@ -808,6 +904,20 @@ body {
     background: var(--bg-color);
     z-index: 2000;
     overflow-y: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+}
+
+.outfit-view-container {
+    width: 100%;
+    max-width: 430px;
+    margin: 0 auto;
+    background: var(--bg-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
 .outfit-view-header {
@@ -817,6 +927,9 @@ body {
     position: sticky;
     top: 0;
     z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .outfit-view-header h2 {
@@ -825,6 +938,28 @@ body {
     color: var(--charcoal);
     text-align: center;
     font-family: 'Georgia', 'Times New Roman', serif;
+    flex: 1;
+}
+
+.outfit-view-header .close-btn {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+
+.outfit-view-header .close-btn:hover {
+    background: var(--beige);
+    color: var(--charcoal);
 }
 
 .outfit-view-content {

@@ -2,13 +2,13 @@ import os, uuid, json
 import random
 import base64
 from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query, Form
+from fastapi import FastAPI, UploadFile, File, Depends, HTTPException, Query, Form, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func
 from PIL import Image
 
 from backend.db import Base, engine, get_db
@@ -325,7 +325,7 @@ def delete_item(
 
 # ==================== OUTFIT ENDPOINTS ====================
 
-@app.post("/outfits/generate")
+@app.get("/outfits/generate")
 def generate_outfit(
     formality: Optional[str] = Query(None),
     season: Optional[str] = Query(None),
@@ -334,15 +334,18 @@ def generate_outfit(
     db: Session = Depends(get_db)
 ):
     """Generate a random outfit from items in the closet"""
+    # Start with all user's items
     query = db.query(Item).filter(Item.user_id == current_user.id)
     
+    # Apply filters (case-insensitive matching for SQLite)
     if formality:
-        query = query.filter(Item.formality == formality)
+        query = query.filter(func.lower(Item.formality) == func.lower(formality))
     if color:
-        query = query.filter(Item.color_primary == color)
+        query = query.filter(func.lower(Item.color_primary) == func.lower(color))
     
     all_items = query.all()
     
+    # Filter by season if specified
     if season:
         filtered_items = []
         for item in all_items:
@@ -354,6 +357,14 @@ def generate_outfit(
                 pass
         all_items = filtered_items
     
+    # Check if we have any items after filtering
+    if not all_items:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No items match your filters. You have {db.query(Item).filter(Item.user_id == current_user.id).count()} total items in your closet."
+        )
+    
+    # Group items by slot
     items_by_slot = {}
     for item in all_items:
         slot_name = item.slot
@@ -376,21 +387,32 @@ def generate_outfit(
             "notes": item.notes,
         })
     
+    # Build outfit - prioritize essential slots
     outfit = {}
     priority_slots = ["top", "bottom", "shoes", "outerwear", "accessory", "dress"]
     
+    # Add one item from each priority slot if available
     for slot_name in priority_slots:
         if slot_name in items_by_slot and items_by_slot[slot_name]:
             outfit[slot_name] = random.choice(items_by_slot[slot_name])
     
+    # Add any remaining slots
     for slot_name, items in items_by_slot.items():
         if slot_name not in outfit and items:
             outfit[slot_name] = random.choice(items)
     
+    # Check if outfit is empty (shouldn't happen if all_items check passed, but just in case)
+    if not outfit:
+        raise HTTPException(
+            status_code=404,
+            detail="Could not generate outfit from available items. Please add more items to your closet."
+        )
+    
     return {
         "outfit": outfit,
         "slots_used": list(outfit.keys()),
-        "total_items_available": len(all_items)
+        "total_items_available": len(all_items),
+        "items_by_slot": {slot: len(items) for slot, items in items_by_slot.items()}
     }
 
 @app.post("/outfits/save")
@@ -455,6 +477,29 @@ def list_outfits(
         })
     
     return result
+
+@app.patch("/outfits/{outfit_id}")
+async def update_outfit(
+    outfit_id: str,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update a saved outfit (currently only supports renaming)"""
+    body = await request.json()
+    name = body.get("name")
+    
+    outfit = db.query(Outfit).filter(Outfit.id == outfit_id, Outfit.user_id == current_user.id).first()
+    if not outfit:
+        raise HTTPException(status_code=404, detail="Outfit not found")
+    
+    if name is not None:
+        outfit.name = name
+    
+    db.commit()
+    db.refresh(outfit)
+    
+    return {"ok": True, "id": outfit.id, "name": outfit.name}
 
 @app.delete("/outfits/{outfit_id}")
 def delete_outfit(

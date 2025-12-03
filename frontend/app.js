@@ -309,18 +309,77 @@ async function loadCloset() {
             empty.style.display = 'block';
         } else {
             empty.style.display = 'none';
-            grid.innerHTML = items.map(item => `
-                <div class="closet-item-card">
+            grid.innerHTML = items.map(item => {
+                // Build hover details text
+                const details = [];
+                if (item.pattern && item.pattern !== 'solid' && item.pattern !== 'unknown') {
+                    details.push(item.pattern);
+                }
+                if (item.material && item.material !== 'unknown') {
+                    details.push(item.material);
+                }
+                if (item.fit && item.fit !== 'regular' && item.fit !== 'unknown') {
+                    details.push(item.fit);
+                }
+                if (item.formality && item.formality !== 'casual' && item.formality !== 'unknown') {
+                    details.push(item.formality);
+                }
+                if (item.season && Array.isArray(item.season) && item.season.length > 0) {
+                    details.push(item.season.join(', '));
+                }
+                if (item.features && Array.isArray(item.features) && item.features.length > 0) {
+                    details.push(item.features.join(', '));
+                }
+                
+                const hoverDetails = details.length > 0 ? details.join(' • ') : '';
+                
+                return `
+                <div class="closet-item-card" data-item-id="${item.id}">
+                    <button class="delete-item-btn" onclick="deleteItem('${item.id}', event)" title="Delete item">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </button>
                     <img src="${API_BASE}${item.image_url}" alt="${item.type}">
                     <div class="closet-item-info">
                         <div class="closet-item-type">${item.type}</div>
                         <div class="closet-item-details">${item.slot} • ${item.color_primary}</div>
+                        ${hoverDetails ? `<div class="closet-item-hover-details">${hoverDetails}</div>` : ''}
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
     } catch (error) {
         console.error('Error loading closet:', error);
+    }
+}
+
+async function deleteItem(itemId, event) {
+    event.stopPropagation(); // Prevent card click events
+    
+    if (!confirm('Are you sure you want to delete this item?')) {
+        return;
+    }
+    
+    try {
+        const response = await apiCall(`/items/${itemId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            // Reload the closet to reflect the deletion
+            await loadCloset();
+        } else {
+            const error = await response.json();
+            alert(`Failed to delete item: ${error.detail || 'Unknown error'}`);
+        }
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        alert('Failed to delete item. Please try again.');
     }
 }
 
@@ -509,6 +568,25 @@ async function generateOutfit() {
     
     try {
         const response = await apiCall(`/outfits/generate?${params.toString()}`);
+        
+        if (!response.ok) {
+            // Try to get error message from response
+            let errorMessage = 'Failed to generate outfit';
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    errorMessage = error.detail || error.message || `Failed to generate outfit: ${response.status}`;
+                } else {
+                    errorMessage = `Failed to generate outfit: ${response.status} ${response.statusText}`;
+                }
+            } catch (e) {
+                errorMessage = `Failed to generate outfit: ${response.status} ${response.statusText}`;
+            }
+            alert(errorMessage);
+            return;
+        }
+        
         const result = await response.json();
         
         if (!result.outfit || Object.keys(result.outfit).length === 0) {
@@ -520,6 +598,7 @@ async function generateOutfit() {
         closeDiscoverPage();
         showOutfitView();
     } catch (error) {
+        console.error('Error generating outfit:', error);
         alert(`Failed to generate outfit: ${error.message}`);
     }
 }
@@ -585,6 +664,25 @@ async function regenerateOutfit() {
     
     try {
         const response = await apiCall(`/outfits/generate?${params.toString()}`);
+        
+        if (!response.ok) {
+            // Try to get error message from response
+            let errorMessage = 'Failed to regenerate outfit';
+            try {
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const error = await response.json();
+                    errorMessage = error.detail || error.message || `Failed to regenerate outfit: ${response.status}`;
+                } else {
+                    errorMessage = `Failed to regenerate outfit: ${response.status} ${response.statusText}`;
+                }
+            } catch (e) {
+                errorMessage = `Failed to regenerate outfit: ${response.status} ${response.statusText}`;
+            }
+            alert(errorMessage);
+            return;
+        }
+        
         const result = await response.json();
         
         if (!result.outfit || Object.keys(result.outfit).length === 0) {
@@ -595,6 +693,7 @@ async function regenerateOutfit() {
         currentOutfit = result.outfit;
         displayOutfit(currentOutfit);
     } catch (error) {
+        console.error('Error regenerating outfit:', error);
         alert(`Failed to regenerate outfit: ${error.message}`);
     }
 }
@@ -648,9 +747,17 @@ async function loadOutfits() {
         } else {
             empty.style.display = 'none';
             list.innerHTML = outfits.map(outfit => `
-                <div class="outfit-card">
+                <div class="outfit-card" data-outfit-id="${outfit.id}">
                     <div class="outfit-card-header">
-                        <div class="outfit-card-name">${outfit.name || 'Untitled Outfit'}</div>
+                        <div class="outfit-name-container">
+                            <span class="outfit-card-name" id="outfit-name-${outfit.id}">${outfit.name || 'Untitled Outfit'}</span>
+                            <button class="rename-btn" onclick="startRenameOutfit('${outfit.id}')" title="Rename outfit">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                        </div>
                         <button class="btn-secondary" onclick="deleteOutfit('${outfit.id}')">Delete</button>
                     </div>
                     <div class="outfit-items-preview">
@@ -683,6 +790,63 @@ async function deleteOutfit(outfitId) {
         alert(`Failed to delete outfit: ${error.message}`);
     }
 }
+
+function startRenameOutfit(outfitId) {
+    const nameElement = document.getElementById(`outfit-name-${outfitId}`);
+    if (!nameElement) return;
+    
+    const currentName = nameElement.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'outfit-name-input';
+    input.style.width = '100%';
+    input.style.padding = '4px 8px';
+    input.style.border = '2px solid var(--olive-green)';
+    input.style.borderRadius = '6px';
+    input.style.fontSize = '1rem';
+    input.style.fontWeight = '600';
+    
+    const container = nameElement.parentElement;
+    container.replaceChild(input, nameElement);
+    input.focus();
+    input.select();
+    
+    const finishRename = async () => {
+        const newName = input.value.trim() || 'Untitled Outfit';
+        try {
+            const response = await apiCall(`/outfits/${outfitId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: newName })
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to rename outfit');
+            }
+            
+            // Reload outfits to show updated name
+            await loadOutfits();
+        } catch (error) {
+            alert(`Failed to rename outfit: ${error.message}`);
+            // Restore original name on error
+            container.replaceChild(nameElement, input);
+        }
+    };
+    
+    input.addEventListener('blur', finishRename);
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            container.replaceChild(nameElement, input);
+        }
+    });
+}
+
 
 // ==================== PROFILE ====================
 
